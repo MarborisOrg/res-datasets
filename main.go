@@ -19,18 +19,13 @@ func main() {
 
 	targetDir := filepath.Join(homeDir, ".marboris", "res")
 
-	if err = os.MkdirAll(targetDir, 0o755); err != nil {
-		fmt.Println("Error creating directory:", err)
-		return
-	}
-
 	if err = os.RemoveAll(targetDir); err != nil {
 		fmt.Println("Error cleaning target directory:", err)
 		return
 	}
 
 	if err = os.MkdirAll(targetDir, 0o755); err != nil {
-		fmt.Println("Error recreating target directory:", err)
+		fmt.Println("Error creating directory:", err)
 		return
 	}
 
@@ -48,13 +43,17 @@ func main() {
 		return
 	}
 
-	err = filepath.Walk(currentDir, func(path string, info os.FileInfo, err error) error {
+	err = filepath.WalkDir(currentDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
+		// Skip excluded files and directories
 		for _, excluded := range excludedFiles {
 			if strings.HasSuffix(path, excluded) || strings.Contains(path, string(os.PathSeparator)+excluded) {
+				if d.IsDir() {
+					return filepath.SkipDir
+				}
 				return nil
 			}
 		}
@@ -65,8 +64,8 @@ func main() {
 		}
 		destPath := filepath.Join(targetDir, relPath)
 
-		if info.IsDir() {
-			if err := os.MkdirAll(destPath, info.Mode()); err != nil {
+		if d.IsDir() {
+			if err := os.MkdirAll(destPath, 0o755); err != nil {
 				return fmt.Errorf("Error creating directory %s: %w", destPath, err)
 			}
 		} else {
@@ -93,9 +92,14 @@ func copyFile(source, destination string) error {
 	if err != nil {
 		return err
 	}
-	defer dstFile.Close()
+	defer func() {
+		dstFile.Close()
+		if err != nil {
+			os.Remove(destination)
+		}
+	}()
 
-	_, err = io.Copy(dstFile, srcFile)
+	_, err = io.CopyBuffer(dstFile, srcFile, make([]byte, 4096)) // Use a buffer for optimized copying
 	if err != nil {
 		return err
 	}

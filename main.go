@@ -39,7 +39,7 @@ func main() {
 		"go.mod",
 		"go.sum",
 		"README",
-		".git", // افزودن دایرکتوری .git به لیست مستثنی‌ها
+		".git",
 	}
 
 	currentDir, err := os.Getwd()

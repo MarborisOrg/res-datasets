@@ -1,0 +1,3 @@
+go run .
+
++ cp ./datasets && ./locales && marboris-ascii.txt to .marboris on your current user

@@ -6,59 +6,36 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"strings"
 )
 
 func main() {
 	usr, err := user.Current()
 	if err != nil {
-		fmt.Println("Error getting user home directory:", err)
-		return
+		panic("Error getting user home directory:")
 	}
 	homeDir := usr.HomeDir
-
-	targetDir := filepath.Join(homeDir, ".marboris", "res")
+	targetDir := filepath.Join(homeDir, ".marboris")
 
 	if err = os.RemoveAll(targetDir); err != nil {
-		fmt.Println("Error cleaning target directory:", err)
-		return
+		panic("Error cleaning target directory:")
 	}
 
 	if err = os.MkdirAll(targetDir, 0o755); err != nil {
-		fmt.Println("Error creating directory:", err)
-		return
-	}
-
-	excludedFiles := []string{
-		"main.go",
-		"go.mod",
-		"go.sum",
-		"README",
-		".git",
+		panic("Error creating directory:")
 	}
 
 	currentDir, err := os.Getwd()
 	if err != nil {
-		fmt.Println("Error getting current directory:", err)
-		return
+		panic("Error getting current directory:")
 	}
+	resDir := currentDir + "res"
 
-	err = filepath.WalkDir(currentDir, func(path string, d os.DirEntry, err error) error {
+	err = filepath.WalkDir(resDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
-		// Skip excluded files and directories
-		for _, excluded := range excludedFiles {
-			if strings.HasSuffix(path, excluded) || strings.Contains(path, string(os.PathSeparator)+excluded) {
-				if d.IsDir() {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-		}
-
-		relPath, err := filepath.Rel(currentDir, path)
+		relPath, err := filepath.Rel(resDir, path)
 		if err != nil {
 			return err
 		}

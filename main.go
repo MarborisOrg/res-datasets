@@ -7,6 +7,8 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
+
+	"marboris/util"
 )
 
 func main() {
@@ -39,6 +41,7 @@ func main() {
 	if err != nil {
 		fmt.Println("Error copying directory:", err)
 	} else {
+		util.RunChecker()
 		fmt.Println("Datasets saved successfully! We are ready to go")
 	}
 }

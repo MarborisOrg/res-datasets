@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
+	"runtime"
 )
 
 func main() {
@@ -16,84 +17,48 @@ func main() {
 	homeDir := usr.HomeDir
 	targetDir := filepath.Join(homeDir, ".marboris")
 
+	// Remove the old directory if it exists
 	if err = os.RemoveAll(targetDir); err != nil {
 		panic("Error cleaning target directory:")
 	}
 
+	// Create the new directory
 	if err = os.MkdirAll(targetDir, 0o755); err != nil {
 		panic("Error creating directory:")
 	}
 
+	// Get the current working directory
 	currentDir, err := os.Getwd()
 	if err != nil {
 		panic("Error getting current directory:")
 	}
-	resDir := currentDir + "res"
+	resDir := filepath.Join(currentDir, "res")
 
-	err = filepath.WalkDir(resDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		relPath, err := filepath.Rel(resDir, path)
-		if err != nil {
-			return err
-		}
-		destPath := filepath.Join(targetDir, relPath)
-
-		if d.IsDir() {
-			if err := os.MkdirAll(destPath, 0o755); err != nil {
-				return fmt.Errorf("Error creating directory %s: %w", destPath, err)
-			}
-		} else {
-			if err := copyFile(path, destPath); err != nil {
-				return fmt.Errorf("Error copying file from %s to %s: %w", path, destPath, err)
-			}
-		}
-
-		return nil
-	})
+	// Copy the directory using system-specific commands
+	err = copyDir(resDir, targetDir)
 	if err != nil {
-		fmt.Println("Error copying files:", err)
+		fmt.Println("Error copying directory:", err)
+	} else {
+		fmt.Println("Datasets saved successfully! We are ready to go")
 	}
 }
 
-func copyFile(source, destination string) error {
-	srcFile, err := os.Open(source)
-	if err != nil {
-		return err
-	}
-	defer srcFile.Close()
+// copyDir uses system-specific commands to copy directories
+func copyDir(src, dst string) error {
+	var cmd *exec.Cmd
 
-	dstFile, err := os.Create(destination)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		dstFile.Close()
-		if err != nil {
-			os.Remove(destination)
-		}
-	}()
-
-	_, err = io.CopyBuffer(dstFile, srcFile, make([]byte, 4096)) // Use a buffer for optimized copying
-	if err != nil {
-		return err
+	if runtime.GOOS == "windows" {
+		// Use xcopy command on Windows
+		cmd = exec.Command("xcopy", src, dst, "/E", "/I", "/Y")
+	} else {
+		// Use cp command on Unix-based systems
+		cmd = exec.Command("cp", "-r", src, dst)
 	}
 
-	if !isWindows() {
-		srcInfo, err := os.Stat(source)
-		if err != nil {
-			return err
-		}
-		if err := os.Chmod(destination, srcInfo.Mode()); err != nil {
-			return err
-		}
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("copy error: %s", string(output))
 	}
 
 	return nil
-}
-
-func isWindows() bool {
-	return os.PathSeparator == '\\'
 }

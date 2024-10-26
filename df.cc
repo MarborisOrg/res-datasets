@@ -129,7 +129,7 @@ void RunChecker()
     }
 }
 
-int main()
+int test()
 {
     RunChecker();
     return 0;
